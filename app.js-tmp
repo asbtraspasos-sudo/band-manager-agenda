@@ -1,0 +1,15 @@
+/**
+ * Band Manager - Core Logic
+ * Supabase Cloud + IndexedDB Local Cache
+ */
+
+// --- CONFIGURACIÓN SUPABASE ---
+// REEMPLAZA ESTOS VALORES CON LOS TUYOS
+const SUPABASE_URL = 'https://jolpqgzkfunnflqwebzp.supabase.co';
+const SUPABASE_KEY = 'PEGA_AQUÍ_TU_CLAVE_ANON';
+const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+// --- DATABASE HELPERS (IndexedDB - Local Cache) ---
+const DB_NAME = 'BandManagerDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'members';

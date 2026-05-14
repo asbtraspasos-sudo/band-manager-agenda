@@ -1,0 +1,17 @@
+{
+  "name": "Band Manager - Backstage",
+  "short_name": "BandManager",
+  "description": "Premium management for music bands.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ef4444",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
