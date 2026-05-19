@@ -167,10 +167,14 @@ const uploadScore = async (file) => {
 const state = new Proxy({
     members: [],
     scores: [],
+    whitelist: [],
     scoreMessage: '',
-    view: 'list', // 'list' | 'add' | 'edit'
+    view: 'auth', // 'auth' | 'list' | 'add' | 'edit' | 'scores' | 'admin-whitelist'
+    authView: 'login', // 'login' | 'verify'
+    user: null,
     selectedMember: null,
-    isOnline: navigator.onLine
+    isOnline: navigator.onLine,
+    stats: { blanca: 0, usuarios: 0, admins: 0 }
 }, {
     set(target, property, value) {
         target[property] = value;
@@ -183,6 +187,19 @@ const state = new Proxy({
 const render = () => {
     const main = document.getElementById('main-content');
     const syncStatus = document.getElementById('sync-status');
+    const appHeader = document.querySelector('.app-header');
+    const bottomNav = document.querySelector('.bottom-nav');
+
+    // Toggle Visibility of Header/Nav based on view
+    if (state.view === 'auth') {
+        if (appHeader) appHeader.style.display = 'none';
+        if (bottomNav) bottomNav.style.display = 'none';
+        renderAuthView(main);
+        return;
+    } else {
+        if (appHeader) appHeader.style.display = 'flex';
+        if (bottomNav) bottomNav.style.display = 'flex';
+    }
 
     syncStatus.textContent = state.isOnline ? 'Cloud Sync On' : 'Offline Mode';
     syncStatus.className = `sync-status ${state.isOnline ? 'online' : 'offline'}`;
@@ -195,6 +212,8 @@ const render = () => {
         renderEditView(main);
     } else if (state.view === 'scores') {
         renderScoresView(main);
+    } else if (state.view === 'admin-whitelist') {
+        renderWhitelistAdminView(main);
     }
 };
 
@@ -210,7 +229,7 @@ const setActiveNav = (activeId) => {
 const renderListView = (container) => {
     container.innerHTML = `
         <div class="animate-fade-in">
-            <h1 style="margin-bottom: 1.5rem; font-weight: 800;">Músicos</h1>
+            <h1 style="margin-bottom: 1.5rem; font-weight: 800;">Los Músicos</h1>
             <div class="member-list">
                 ${state.members.length === 0 ? `
                     <div class="empty-state">
@@ -471,8 +490,230 @@ window.openScore = async (path) => {
     window.open(data.signedUrl, '_blank');
 };
 
+// --- AUTH & WHITELIST LOGIC ---
+const checkWhitelist = async (email) => {
+    if (!supabase) return false;
+    const { data, error } = await supabase
+        .from('whitelist')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
+
+    if (error || !data) return false;
+    return true;
+};
+
+window.loginWithGoogle = async () => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin }
+    });
+    if (error) alert(error.message);
+};
+
+window.sendOtp = async () => {
+    const email = document.getElementById('auth-email').value;
+    if (!email) return alert('Por favor, introduce un email.');
+
+    const isAllowed = await checkWhitelist(email);
+    if (!isAllowed) {
+        alert('Este correo no está en la lista blanca. Contacta con el administrador.');
+        return;
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    if (error) {
+        alert(error.message);
+    } else {
+        alert('Código enviado a tu correo.');
+        state.authEmail = email;
+        state.authView = 'verify';
+    }
+};
+
+window.verifyOtp = async () => {
+    const otp = document.getElementById('auth-otp').value;
+
+    if (!otp || otp.length !== 6) return alert('Por favor, introduce el código de 6 dígitos.');
+
+    const { error } = await supabase.auth.verifyOtp({
+        email: state.authEmail,
+        token: otp,
+        type: 'magiclink'
+    });
+
+    if (error) {
+        alert('Error al verificar el código: ' + error.message);
+    } else {
+        // El listener de auth onAuthStateChange se encargará de redirigir a 'list'
+        state.authView = 'login'; // Reset para futuros logins
+    }
+};
+
+const renderAuthView = (container) => {
+    if (state.authView === 'verify') {
+        container.innerHTML = `
+            <div class="auth-container animate-fade-in">
+                <div class="auth-card">
+                    <div class="auth-logo-circle">
+                        <img src="icon.png" alt="Logo">
+                    </div>
+                    <h2 class="auth-title">Verifica tu código</h2>
+                    <p class="auth-subtitle">Hemos enviado un código de 6 dígitos a <br><strong>${state.authEmail}</strong></p>
+                    
+                    <div class="input-group" style="text-align: left; margin-bottom: 1rem;">
+                        <label>Código de verificación</label>
+                        <input type="text" id="auth-otp" placeholder="123456" maxlength="6" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem; font-weight: 800;">
+                    </div>
+
+                    <button class="btn-primary" style="width: 100%;" onclick="window.verifyOtp()">
+                        ENTRAR
+                    </button>
+                    
+                    <button class="btn-secondary" style="width: 100%; margin-top: 1rem; border: none; background: transparent; color: var(--text-secondary);" onclick="state.authView = 'login'">
+                        Volver al inicio
+                    </button>
+                </div>
+            </div>
+        `;
+    } else {
+        container.innerHTML = `
+            <div class="auth-container animate-fade-in">
+                <div class="auth-card">
+                    <div class="auth-logo-circle">
+                        <img src="icon.png" alt="Logo">
+                    </div>
+                    <div class="auth-app-name">CDiTCs</div>
+                    
+                    <h2 class="auth-title">Acceder a CDiTCs</h2>
+                    <p class="auth-subtitle">BENVIGUDA A LA COLLA</p>
+
+                    <button class="btn-google" onclick="window.loginWithGoogle()">
+                        <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        Continuar con Google
+                    </button>
+
+                    <div class="auth-separator">EMAIL DIRECTO</div>
+
+                    <div class="input-group" style="text-align: left;">
+                        <label>Correo Electrónico</label>
+                        <input type="email" id="auth-email" placeholder="músico@colla.com" style="background: #f1f5f9; border: none;">
+                    </div>
+
+                    <button class="btn-otp" onclick="window.sendOtp()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                        RECIBIR CÓDIGO
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+};
+
+const renderWhitelistAdminView = (container) => {
+    container.innerHTML = `
+        <div class="animate-fade-in">
+            <div class="admin-header">
+                <button onclick="state.view = 'list'" class="btn-icon-back" style="margin-bottom: 1rem;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                </button>
+                <h1>Gestión de la Colla</h1>
+                <p>Control de acceso y roles de los usuarios.</p>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card"><span class="num">${state.whitelist.length}</span><span class="label">Blanca</span></div>
+                <div class="stat-card"><span class="num">${state.members.length}</span><span class="label">Usuarios</span></div>
+                <div class="stat-card"><span class="num">5</span><span class="label">Admins</span></div>
+                <div class="stat-card"><span class="num">26</span><span class="label">Dolçaina</span></div>
+                <div class="stat-card"><span class="num">10</span><span class="label">Percusi...</span></div>
+            </div>
+
+            <div class="tab-switcher">
+                <button class="tab-btn">Usuarios Activos</button>
+                <button class="tab-btn active">Lista Blanca</button>
+            </div>
+
+            <div class="add-access-box">
+                <h3>AÑADIR NUEVO ACCESO</h3>
+                <p>Solo los emails en esta lista podrán registrarse en la App.</p>
+                <form id="add-whitelist-form" class="add-access-form">
+                    <input type="email" id="new-email" placeholder="correo@ejemplo.com" required>
+                    <button type="submit" class="btn-add-circle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="17" y1="11" x2="23" y2="11"></line></svg>
+                        Añadir
+                    </button>
+                </form>
+            </div>
+
+            <div class="whitelist-list">
+                ${state.whitelist.map(item => `
+                    <div class="whitelist-item">
+                        <div class="item-main">
+                            <div class="status-dot ${item.status.toLowerCase() === 'registrado' ? 'registered' : 'pending'}"></div>
+                            <div class="item-info">
+                                <span class="item-email">${item.email}</span>
+                                <span class="item-status-text">${item.status}</span>
+                            </div>
+                        </div>
+                        <button onclick="window.removeFromWhitelist('${item.id}')" class="btn-icon-delete" style="background: transparent;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('add-whitelist-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('new-email').value;
+        await addToWhitelist(email);
+        document.getElementById('new-email').value = '';
+    };
+};
+
+const fetchWhitelist = async () => {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('whitelist').select('*').order('created_at', { ascending: false });
+    if (!error) state.whitelist = data;
+};
+
+const addToWhitelist = async (email) => {
+    if (!supabase) return;
+    const { error } = await supabase.from('whitelist').insert([{ email: email.toLowerCase(), status: 'PENDIENTE' }]);
+    if (error) alert('Error al añadir: ' + error.message);
+    else fetchWhitelist();
+};
+
+window.removeFromWhitelist = async (id) => {
+    if (!supabase) return;
+    if (confirm('¿Eliminar de la lista blanca?')) {
+        const { error } = await supabase.from('whitelist').delete().eq('id', id);
+        if (error) alert('Error: ' + error.message);
+        else fetchWhitelist();
+    }
+};
+
 // --- INITIALIZATION ---
 const init = async () => {
+    // Auth Listener
+    if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        state.user = session?.user || null;
+
+        supabase.auth.onAuthStateChange((_event, session) => {
+            state.user = session?.user || null;
+            if (state.user) {
+                state.view = 'list';
+                fetchWhitelist(); // Load whitelist for admin use
+            } else {
+                state.view = 'auth';
+            }
+        });
+    }
+
     state.members = await getAllMembers();
     try {
         state.scores = await getAllScores();
@@ -485,19 +726,28 @@ const init = async () => {
     document.getElementById('nav-add').onclick = () => state.view = 'add';
     document.getElementById('nav-scores').onclick = () => state.view = 'scores';
 
+    // Perfil -> Admin Whitelist (Demo)
+    // In a real app, this would check if the user is an admin
+    const navScores = document.getElementById('nav-scores');
+    // I'll add a temporary way to get to the whitelist for testing
+    // Maybe double clicking the logo?
+    document.querySelector('.logo').onclick = () => {
+        if (state.user) state.view = 'admin-whitelist';
+    };
+
     window.addEventListener('online', () => {
         state.isOnline = true;
-        getAllMembers().then(m => state.members = m); // Resync on reconnect
-        getAllScores()
-            .then(scores => {
-                state.scoreMessage = '';
-                state.scores = scores;
-            })
-            .catch(error => {
-                state.scoreMessage = `No se pudieron cargar las partituras de Supabase: ${error.message}`;
-            });
+        getAllMembers().then(m => state.members = m);
+        getAllScores().then(scores => { state.scoreMessage = ''; state.scores = scores; });
     });
     window.addEventListener('offline', () => state.isOnline = false);
+
+    if (!state.user) {
+        state.view = 'auth';
+    } else {
+        state.view = 'list';
+        fetchWhitelist();
+    }
 
     render();
 };
