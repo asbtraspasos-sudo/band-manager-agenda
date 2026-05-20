@@ -32,6 +32,7 @@
             <button id="nav-scores" class="nav-item nav-icon" title="Partituras">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
             </button>
+            <button id="nav-admin" class="nav-item" title="Admin">Admin</button>
         </nav>
     </div>
 
@@ -41,7 +42,7 @@
     <script src="app.js" type="module"></script>
     
     <script>
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
                     .then(reg => console.log('SW Registered'))

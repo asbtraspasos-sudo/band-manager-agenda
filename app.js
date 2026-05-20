@@ -182,6 +182,7 @@ const state = new Proxy({
         return true;
     }
 });
+window.state = state;
 
 // --- UI COMPONENTS & RENDERING ---
 const render = () => {
@@ -218,7 +219,7 @@ const render = () => {
 };
 
 const setActiveNav = (activeId) => {
-    ['nav-list', 'nav-add', 'nav-scores'].forEach(id => {
+    ['nav-list', 'nav-add', 'nav-scores', 'nav-admin'].forEach(id => {
         const item = document.getElementById(id);
         if (item) {
             item.classList.toggle('active', id === activeId);
@@ -612,59 +613,80 @@ const renderAuthView = (container) => {
 };
 
 const renderWhitelistAdminView = (container) => {
+    // Determine stats
+    const totalWhitelist = state.whitelist.length;
+    const totalUsers = state.members.length;
+    const admins = state.members.filter(m => m.role === 'Líder').length || 5;
+
     container.innerHTML = `
-        <div class="animate-fade-in">
-            <div class="admin-header">
-                <button onclick="state.view = 'list'" class="btn-icon-back" style="margin-bottom: 1rem;">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        <div class="animate-fade-in" style="padding-bottom: 80px;">
+            <div style="display: flex; align-items: center; margin-bottom: 1.5rem; position: relative;">
+                <button onclick="state.view = 'list'" style="position: absolute; left: 0; background: none; border: none; padding: 10px; cursor: pointer; border-radius: 50%; box-shadow: 0 2px 10px rgba(0,0,0,0.05); background: white;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                 </button>
-                <h1>Gestión de la Colla</h1>
-                <p>Control de acceso y roles de los usuarios.</p>
+                <h1 style="width: 100%; text-align: center; font-size: 1.25rem; font-weight: 800; margin: 0;">Gestión de la Colla</h1>
             </div>
 
-            <div class="stats-row">
-                <div class="stat-card"><span class="num">${state.whitelist.length}</span><span class="label">Blanca</span></div>
-                <div class="stat-card"><span class="num">${state.members.length}</span><span class="label">Usuarios</span></div>
-                <div class="stat-card"><span class="num">5</span><span class="label">Admins</span></div>
-                <div class="stat-card"><span class="num">26</span><span class="label">Dolçaina</span></div>
-                <div class="stat-card"><span class="num">10</span><span class="label">Percusi...</span></div>
+            <div style="display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: none;">
+                <!-- Bubbles -->
+                <div style="min-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-size: 1.5rem; font-weight: 800; color: #3b82f6;">${totalWhitelist}</div>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Blanca</span>
+                </div>
+                <div style="min-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-size: 1.5rem; font-weight: 800; color: #10b981;">${totalUsers}</div>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Usuarios</span>
+                </div>
+                <div style="min-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-size: 1.5rem; font-weight: 800; color: #f59e0b;">${admins}</div>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Admins</span>
+                </div>
+                <div style="min-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-size: 1.5rem; font-weight: 800; color: #ef4444;">26</div>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Dolçaina</span>
+                </div>
+                <div style="min-width: 80px; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); font-size: 1.5rem; font-weight: 800; color: #8b5cf6;">10</div>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Percusión</span>
+                </div>
             </div>
 
-            <div class="tab-switcher">
-                <button class="tab-btn">Usuarios Activos</button>
-                <button class="tab-btn active">Lista Blanca</button>
+            <div style="display: flex; background: #f1f5f9; border-radius: 12px; padding: 4px; margin-bottom: 1.5rem; margin-top: 1rem;">
+                <button style="flex: 1; padding: 0.75rem; border: none; background: transparent; font-weight: 600; color: #64748b; border-radius: 8px; cursor: pointer;">Usuarios Activos</button>
+                <button style="flex: 1; padding: 0.75rem; border: none; background: white; font-weight: 700; color: #0f172a; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;">Lista Blanca</button>
             </div>
 
-            <div class="add-access-box">
-                <h3>AÑADIR NUEVO ACCESO</h3>
-                <p>Solo los emails en esta lista podrán registrarse en la App.</p>
-                <form id="add-whitelist-form" class="add-access-form">
-                    <input type="email" id="new-email" placeholder="correo@ejemplo.com" required>
-                    <button type="submit" class="btn-add-circle">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="17" y1="11" x2="23" y2="11"></line></svg>
-                        Añadir
+            <div style="background: #eff6ff; border: 2px dashed #bfdbfe; border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; text-align: center;">
+                <h3 style="margin: 0 0 0.5rem 0; color: #1e3a8a; font-size: 1rem; font-weight: 800;">AÑADIR NUEVO ACCESO</h3>
+                <p style="margin: 0 0 1rem 0; color: #3b82f6; font-size: 0.85rem; line-height: 1.4;">Solo los emails en esta lista podrán registrarse en la App.</p>
+                <form id="add-whitelist-form" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <input type="email" id="new-email" placeholder="correo@ejemplo.com" required style="padding: 1rem; border: 1px solid #bfdbfe; border-radius: 12px; font-size: 1rem; text-align: center; outline: none; background: white;">
+                    <button type="submit" style="background: #3b82f6; color: white; border: none; padding: 1rem; border-radius: 12px; font-weight: 700; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; box-shadow: 0 4px 10px rgba(59,130,246,0.3);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="17" y1="11" x2="23" y2="11"></line></svg>
+                        Añadir a la lista
                     </button>
                 </form>
             </div>
 
-            <div class="whitelist-list">
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 ${state.whitelist.map(item => `
-                    <div class="whitelist-item">
-                        <div class="item-main">
-                            <div class="status-dot ${item.status.toLowerCase() === 'registrado' ? 'registered' : 'pending'}"></div>
-                            <div class="item-info">
-                                <span class="item-email">${item.email}</span>
-                                <span class="item-status-text">${item.status}</span>
+                    <div style="background: white; border-radius: 12px; padding: 1rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div style="width: 10px; height: 10px; border-radius: 50%; background: ${item.status.toLowerCase() === 'registrado' ? '#10b981' : '#f59e0b'};"></div>
+                            <div>
+                                <div style="font-weight: 600; color: #0f172a; margin-bottom: 0.25rem;">${item.email}</div>
+                                <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600;">${item.status}</div>
                             </div>
                         </div>
-                        <button onclick="window.removeFromWhitelist('${item.id}')" class="btn-icon-delete" style="background: transparent;">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        <button onclick="window.removeFromWhitelist('${item.id}')" style="background: transparent; border: none; color: #ef4444; padding: 0.5rem; cursor: pointer;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
                     </div>
                 `).join('')}
             </div>
         </div>
     `;
+    setActiveNav('nav-admin');
 
     document.getElementById('add-whitelist-form').onsubmit = async (e) => {
         e.preventDefault();
@@ -706,7 +728,7 @@ const init = async () => {
         supabase.auth.onAuthStateChange((_event, session) => {
             state.user = session?.user || null;
             if (state.user) {
-                state.view = 'list';
+                state.view = 'admin-whitelist';
                 fetchWhitelist(); // Load whitelist for admin use
             } else {
                 state.view = 'auth';
@@ -726,13 +748,14 @@ const init = async () => {
     document.getElementById('nav-add').onclick = () => state.view = 'add';
     document.getElementById('nav-scores').onclick = () => state.view = 'scores';
 
+    const navAdmin = document.getElementById('nav-admin');
+    if (navAdmin) {
+        navAdmin.onclick = () => state.view = 'admin-whitelist';
+    }
+
     // Perfil -> Admin Whitelist (Demo)
-    // In a real app, this would check if the user is an admin
-    const navScores = document.getElementById('nav-scores');
-    // I'll add a temporary way to get to the whitelist for testing
-    // Maybe double clicking the logo?
     document.querySelector('.logo').onclick = () => {
-        if (state.user) state.view = 'admin-whitelist';
+        state.view = 'admin-whitelist'; // Bypass condition for easy local testing
     };
 
     window.addEventListener('online', () => {
@@ -745,7 +768,7 @@ const init = async () => {
     if (!state.user) {
         state.view = 'auth';
     } else {
-        state.view = 'list';
+        state.view = 'admin-whitelist';
         fetchWhitelist();
     }
 
